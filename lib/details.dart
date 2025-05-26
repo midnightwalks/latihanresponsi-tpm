@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
 
 class DetailPage extends StatefulWidget {
@@ -35,28 +36,40 @@ class _DetailPageState extends State<DetailPage> {
 
   void checkFavorite() async {
     var box = await Hive.openBox('favorites');
+    var prefs = await SharedPreferences.getInstance();
+    String? username = prefs.getString('username');
+
+    Map userFavorites = box.get(username, defaultValue: {}) as Map;
     setState(() {
-      isFavorite = box.containsKey(widget.id);
+      isFavorite = userFavorites.containsKey(widget.id);
     });
   }
 
-  void toggleFavorite() async {
+void toggleFavorite() async {
     var box = await Hive.openBox('favorites');
-    String message;
+    var prefs = await SharedPreferences.getInstance();
+    String? username = prefs.getString('username');
+    String message = '';
+
+    // Ambil data favorit untuk user
+    Map userFavorites = box.get(username, defaultValue: {}) as Map;
 
     if (isFavorite) {
-      box.delete(widget.id);
+      userFavorites.remove(widget.id); // ✅ hapus berdasarkan ID dari map user
       message = 'Berhasil dihapus dari favorit';
     } else {
-      box.put(widget.id, restaurant);
+      userFavorites[widget.id] = restaurant; // ✅ tambahkan data baru
       message = 'Berhasil ditambahkan ke favorit';
     }
+
+    // Simpan ulang ke box
+    await box.put(username, userFavorites);
 
     setState(() {
       isFavorite = !isFavorite;
     });
 
-    // Tampilkan SnackBar
+    // Tampilkan pesan
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -69,9 +82,15 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+
+@override
+Widget build(BuildContext context) {
+  return WillPopScope(
+    onWillPop: () async {
+      Navigator.pop(context, true); // beri sinyal bahwa data bisa saja berubah
+      return false; // agar tidak double pop
+    },
+    child: Scaffold(
       backgroundColor: const Color((0xFFF5F5DC)),
       appBar: AppBar(
         title: Text("Details", style: TextStyle(color: Colors.white)),
@@ -127,6 +146,7 @@ class _DetailPageState extends State<DetailPage> {
                 ],
               ),
             ),
-    );
-  }
+    ),
+  );
+}
 }

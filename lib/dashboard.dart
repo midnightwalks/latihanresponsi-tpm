@@ -65,7 +65,10 @@ class _DashboardState extends State<Dashboard> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => FavoritesPage()),
-              );
+              ).then((_) {
+                // trigger rebuild saat kembali ke dashboard (jika perlu update lain)
+                setState(() {});
+              });
             },
           ),
           IconButton(
